@@ -3,12 +3,27 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit_authenticator as stauth
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 st.set_page_config(page_title="AI Financial Advisor", layout="wide")
 
-# دالة تحليل الأسهم المعزولة لضمان المحاذاة بنسبة 100% ومنع مشاكل الـ Syntax
+# إنشاء جلسة اتصال ذكية لإعادة المحاولة تلقائياً وتفادي الـ Timeouts السحابية
+def create_secure_session():
+    session = requests.Session()
+    retry = Retry(connect=3, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session
+
+# دالة تحليل الأسهم المعزولة والمطورة ضد انقطاع خوادم ياهو فاينانس
 def analyze_stock_data(ticker_input):
-    stock = yf.Ticker(ticker_input)
+    secure_session = create_secure_session()
+    stock = yf.Ticker(ticker_input, session=secure_session)
+    
+    # سحب البيانات السعرية لآخر 6 أشهر
     df = stock.history(period="6mo")
     if df.empty:
         return None
@@ -83,7 +98,7 @@ LANG_DICT = {
         "enter_ticker": "أدخل رمز السهم (مثال: AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "ابدأ التحليل الذكي 🚀",
         "loading": "جاري سحب البيانات وتحليل السهم ماليًا وفنيًا...",
-        "error_fetch": "❌ خطأ: تأكد من كتابة الرمز صحيحاً مع لاحقته الجغرافية مثل .L أو .CA.",
+        "error_fetch": "❌ خطأ في الشبكة السحابية: يرجى المحاولة مرة أخرى بعد ثوانٍ. تأكد من إرفاق اللاحقة الجغرافية مثل .L للندن أو .CA لمصر.",
         "basic_info": "📊 بيانات السهم الأساسية",
         "price": "السعر الحالي",
         "market_cap": "القيمة السوقية",
@@ -126,7 +141,7 @@ LANG_DICT = {
         "enter_ticker": "Enter Stock Ticker (e.g., AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "Start Smart Analysis 🚀",
         "loading": "Fetching data, analyzing technicals, fundamentals, and news...",
-        "error_fetch": "❌ Error: Please check the symbol and geographic extension (e.g., .L or .CA).",
+        "error_fetch": "❌ Connection Error: Please try again in a few seconds. Ensure you add .L for London or .CA for Egypt.",
         "basic_info": "📊 Stock Basic Data",
         "price": "Current Price",
         "market_cap": "Market Cap",
@@ -217,13 +232,3 @@ elif authentication_status:
                 res = None
                 try:
                     res = analyze_stock_data(ticker_input)
-                except Exception as e:
-                    st.error(f"{ln['error_fetch']} | Details: {str(e)}")
-                
-                if res is None:
-                    st.error(ln["error_fetch"])
-                else:
-                    sentiment_res = ln["sent_pos"] if res["score"] > 0 else (ln["sent_neg"] if res["score"] < 0 else ln["sent_neu"])
-                    
-                    if res["tech_signal"] == "صعودي" and res["fund_signal"] != "متضخم / غالي" and res["score"] >= 0:
-                        final_rec = ln["buy"]
