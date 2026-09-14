@@ -4,18 +4,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit_authenticator as stauth
 
-# إعدادات الصفحة والواجهة
 st.set_page_config(page_title="AI Financial Advisor", layout="wide")
 
-# 1. إعداد حسابات المستخدمين وإدارة الذاكرة
 if 'credentials' not in st.session_state:
     names = ["Ahmed Ali", "Sarah Mohamed"]
     usernames = ["ahmed123", "sarah_investor"]
     passwords = ["12345", "stock_pass"]
     emails = ["ahmed@example.com", "sarah@example.com"]
-    
     hashed_passwords = stauth.Hasher(passwords).generate()
-    
     credentials = {"usernames": {}}
     for i in range(len(usernames)):
         credentials["usernames"][usernames[i]] = {
@@ -25,7 +21,6 @@ if 'credentials' not in st.session_state:
         }
     st.session_state.credentials = credentials
 
-# 2. إنشاء نموذج المصادقة ونظام تسجيل الدخول
 authenticator = stauth.Authenticate(
     st.session_state.credentials,
     cookie_name="portfolio_ai_cookie",
@@ -33,10 +28,8 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=30
 )
 
-# واجهة اختيار اللغة المبدئية في شاشة الدخول
 selected_lang_name = st.sidebar.selectbox("اختر اللغة / Select Language", ["العربية", "English"])
 
-# قاموس المصطلحات والترجمة الكامل
 LANG_DICT = {
     "العربية": {
         "welcome": "👋 مرحباً بك مجدداً، {name}",
@@ -47,7 +40,7 @@ LANG_DICT = {
         "enter_ticker": "أدخل رمز السهم (مثال: AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "ابدأ التحليل الذكي 🚀",
         "loading": "جاري سحب البيانات وتحليل السهم ماليًا وفنيًا...",
-        "error_fetch": "❌ خطأ: لم نتمكن من جلب بيانات هذا الرمز. تأكد من الصيغة الصحيحة وجودة اللاحقة الجغرافية الجيدة مثل .L أو .CA.",
+        "error_fetch": "❌ خطأ: تأكد من كتابة الرمز صحيحاً مع لاحقته الجغرافية مثل .L أو .CA.",
         "basic_info": "📊 بيانات السهم الأساسية",
         "price": "السعر الحالي",
         "market_cap": "القيمة السوقية",
@@ -79,8 +72,7 @@ LANG_DICT = {
         "pnl": "الربح / الخسارة",
         "port_empty": "محفظتك فارغة حالياً. ابحث عن سهم وأضفه لبدء التتبع الآمن.",
         "security_tab": "🔐 إدارة الأمان وكلمة المرور",
-        "forgot_pass": "هل نسيت كلمة المرور؟ 🔑",
-        "change_pass": "تغيير كلمة المرور الحالية 🛠️"
+        "forgot_pass": "هل نسيت كلمة المرور؟ 🔑"
     },
     "English": {
         "welcome": "👋 Welcome back, {name}",
@@ -91,7 +83,7 @@ LANG_DICT = {
         "enter_ticker": "Enter Stock Ticker (e.g., AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "Start Smart Analysis 🚀",
         "loading": "Fetching data, analyzing technicals, fundamentals, and news...",
-        "error_fetch": "❌ Error: Could not fetch data for this ticker. Please check the symbol and geographic extension (e.g., .L or .CA).",
+        "error_fetch": "❌ Error: Please check the symbol and geographic extension (e.g., .L or .CA).",
         "basic_info": "📊 Stock Basic Data",
         "price": "Current Price",
         "market_cap": "Market Cap",
@@ -123,8 +115,7 @@ LANG_DICT = {
         "pnl": "Profit / Loss",
         "port_empty": "Your portfolio is currently empty. Analyze and add a stock to track it securely.",
         "security_tab": "🔐 Security & Password Settings",
-        "forgot_pass": "Forgot Password? 🔑",
-        "change_pass": "Change Current Password 🛠️"
+        "forgot_pass": "Forgot Password? 🔑"
     }
 }
 ln = LANG_DICT[selected_lang_name]
@@ -132,12 +123,10 @@ ln = LANG_DICT[selected_lang_name]
 if selected_lang_name == "العربية":
     st.markdown('<style>body, div, p, h1, h2, h3 {text-align: right; direction: rtl;}</style>', unsafe_allow_html=True)
 
-# عرض شاشة تسجيل الدخول
 name, authentication_status, username = authenticator.login("main")
 
 if authentication_status == False:
     st.error("❌ اسم المستخدم أو كلمة المرور غير صحيحة / Incorrect Credentials")
-    
     with st.expander(ln["forgot_pass"]):
         try:
             username_of_forgotten_password, email_of_forgotten_password, new_random_password = authenticator.forgot_password()
@@ -148,7 +137,6 @@ if authentication_status == False:
 
 elif authentication_status == None:
     st.warning("🔒 يرجى تسجيل الدخول للوصول إلى مستشارك المالي ومحفظتك الاستثمارية")
-    
     with st.expander(ln["forgot_pass"]):
         try:
             username_of_forgotten_password, email_of_forgotten_password, new_random_password = authenticator.forgot_password()
@@ -157,9 +145,7 @@ elif authentication_status == None:
         except Exception as e:
             st.error(str(e))
 
-# 3. في حال نجاح تسجيل الدخول
 elif authentication_status:
-    
     if f'portfolio_{username}' not in st.session_state:
         st.session_state[f'portfolio_{username}'] = {}
 
@@ -217,6 +203,12 @@ elif authentication_status:
                                     if nw in title_text: score -= 1
                         
                         sentiment_res = ln["sent_pos"] if score > 0 else (ln["sent_neg"] if score < 0 else ln["sent_neu"])
-
                         tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
                         
+                        fund_signal = "عادل / صندوق استثماري"
+                        if pe_ratio:
+                            if pe_ratio < 15: fund_signal = "رخيص / مغري"
+                            elif pe_ratio > 30: fund_signal = "متضخم / غالي"
+                        
+                        if tech_signal == "صعودي" and fund_signal != "متضخم / غالي" and score >= 0:
+                            final_rec = ln["buy"]
