@@ -227,6 +227,4 @@ elif authentication_status:
         if st.button(ln["btn_analyze"]):
             with st.spinner(ln["loading"]):
                 res = analyze_stock_data(ticker_input)
-                
                 if res is None:
-
