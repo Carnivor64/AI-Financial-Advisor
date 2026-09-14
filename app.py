@@ -6,6 +6,51 @@ import streamlit_authenticator as stauth
 
 st.set_page_config(page_title="AI Financial Advisor", layout="wide")
 
+# دالة تحليل الأسهم المعزولة لضمان المحاذاة بنسبة 100% ومنع مشاكل الـ Syntax
+def analyze_stock_data(ticker_input):
+    stock = yf.Ticker(ticker_input)
+    df = stock.history(period="6mo")
+    if df.empty:
+        return None
+    
+    df['SMA_20'] = df['Close'].rolling(window=20).mean()
+    df['SMA_50'] = df['Close'].rolling(window=50).mean()
+    
+    current_price = df['Close'].iloc[-1]
+    sma_20 = df['SMA_20'].iloc[-1]
+    sma_50 = df['SMA_50'].iloc[-1]
+    
+    info = stock.info
+    pe_ratio = info.get('trailingPE', None)
+    market_cap = info.get('marketCap', 0)
+    currency = info.get('currency', 'USD')
+    
+    news = stock.news
+    pos_words = ['growth', 'profit', 'dividend', 'surge', 'up', 'أرباح', 'نمو', 'صعود']
+    neg_words = ['loss', 'drop', 'decline', 'fall', 'debt', 'خسائر', 'تراجع', 'هبوط']
+    score = 0
+    if news:
+        for item in news[:5]:
+            title_text = item.get('title', '').lower()
+            for pw in pos_words:
+                if pw in title_text: score += 1
+            for nw in neg_words:
+                if nw in title_text: score -= 1
+    
+    tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
+    
+    fund_signal = "عادل / صندوق استثماري"
+    if pe_ratio:
+        if pe_ratio < 15: fund_signal = "رخيص / مغري"
+        elif pe_ratio > 30: fund_signal = "متضخم / غالي"
+        
+    return {
+        "df": df, "current_price": current_price, "sma_20": sma_20, "sma_50": sma_50,
+        "pe_ratio": pe_ratio, "market_cap": market_cap, "currency": currency,
+        "score": score, "tech_signal": tech_signal, "fund_signal": fund_signal
+    }
+
+# إعداد حسابات المستخدمين
 if 'credentials' not in st.session_state:
     names = ["Ahmed Ali", "Sarah Mohamed"]
     usernames = ["ahmed123", "sarah_investor"]
@@ -15,9 +60,7 @@ if 'credentials' not in st.session_state:
     credentials = {"usernames": {}}
     for i in range(len(usernames)):
         credentials["usernames"][usernames[i]] = {
-            "name": names[i],
-            "password": hashed_passwords[i],
-            "email": emails[i]
+            "name": names[i], "password": hashed_passwords[i], "email": emails[i]
         }
     st.session_state.credentials = credentials
 
@@ -171,44 +214,16 @@ elif authentication_status:
 
         if st.button(ln["btn_analyze"]):
             with st.spinner(ln["loading"]):
+                res = None
                 try:
-                    stock = yf.Ticker(ticker_input)
-                    df = stock.history(period="6mo")
+                    res = analyze_stock_data(ticker_input)
+                except Exception as e:
+                    st.error(f"{ln['error_fetch']} | Details: {str(e)}")
+                
+                if res is None:
+                    st.error(ln["error_fetch"])
+                else:
+                    sentiment_res = ln["sent_pos"] if res["score"] > 0 else (ln["sent_neg"] if res["score"] < 0 else ln["sent_neu"])
                     
-                    if df.empty:
-                        st.error(ln["error_fetch"])
-                    else:
-                        df['SMA_20'] = df['Close'].rolling(window=20).mean()
-                        df['SMA_50'] = df['Close'].rolling(window=50).mean()
-                        
-                        current_price = df['Close'].iloc[-1]
-                        sma_20 = df['SMA_20'].iloc[-1]
-                        sma_50 = df['SMA_50'].iloc[-1]
-                        
-                        info = stock.info
-                        pe_ratio = info.get('trailingPE', None)
-                        market_cap = info.get('marketCap', 0)
-                        currency = info.get('currency', 'USD')
-                        
-                        news = stock.news
-                        pos_words = ['growth', 'profit', 'dividend', 'surge', 'up', 'أرباح', 'نمو', 'صعود']
-                        neg_words = ['loss', 'drop', 'decline', 'fall', 'debt', 'خسائر', 'تراجع', 'هبوط']
-                        score = 0
-                        if news:
-                            for item in news[:5]:
-                                title_text = item.get('title', '').lower()
-                                for pw in pos_words:
-                                    if pw in title_text: score += 1
-                                for nw in neg_words:
-                                    if nw in title_text: score -= 1
-                        
-                        sentiment_res = ln["sent_pos"] if score > 0 else (ln["sent_neg"] if score < 0 else ln["sent_neu"])
-                        tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
-                        
-                        fund_signal = "عادل / صندوق استثماري"
-                        if pe_ratio:
-                            if pe_ratio < 15: fund_signal = "رخيص / مغري"
-                            elif pe_ratio > 30: fund_signal = "متضخم / غالي"
-                        
-                        if tech_signal == "صعودي" and fund_signal != "متضخم / غالي" and score >= 0:
-                            final_rec = ln["buy"]
+                    if res["tech_signal"] == "صعودي" and res["fund_signal"] != "متضخم / غالي" and res["score"] >= 0:
+                        final_rec = ln["buy"]
