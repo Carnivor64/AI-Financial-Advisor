@@ -9,7 +9,6 @@ from urllib3.util import Retry
 
 st.set_page_config(page_title="AI Financial Advisor", layout="wide")
 
-# إنشاء جلسة اتصال ذكية لإعادة المحاولة تلقائياً وتفادي الـ Timeouts السحابية
 def create_secure_session():
     session = requests.Session()
     retry = Retry(connect=3, backoff_factor=0.5)
@@ -18,54 +17,52 @@ def create_secure_session():
     session.mount('https://', adapter)
     return session
 
-# دالة تحليل الأسهم المعزولة والمطورة ضد انقطاع خوادم ياهو فاينانس
 def analyze_stock_data(ticker_input):
-    secure_session = create_secure_session()
-    stock = yf.Ticker(ticker_input, session=secure_session)
-    
-    # سحب البيانات السعرية لآخر 6 أشهر
-    df = stock.history(period="6mo")
-    if df.empty:
-        return None
-    
-    df['SMA_20'] = df['Close'].rolling(window=20).mean()
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    
-    current_price = df['Close'].iloc[-1]
-    sma_20 = df['SMA_20'].iloc[-1]
-    sma_50 = df['SMA_50'].iloc[-1]
-    
-    info = stock.info
-    pe_ratio = info.get('trailingPE', None)
-    market_cap = info.get('marketCap', 0)
-    currency = info.get('currency', 'USD')
-    
-    news = stock.news
-    pos_words = ['growth', 'profit', 'dividend', 'surge', 'up', 'أرباح', 'نمو', 'صعود']
-    neg_words = ['loss', 'drop', 'decline', 'fall', 'debt', 'خسائر', 'تراجع', 'هبوط']
-    score = 0
-    if news:
-        for item in news[:5]:
-            title_text = item.get('title', '').lower()
-            for pw in pos_words:
-                if pw in title_text: score += 1
-            for nw in neg_words:
-                if nw in title_text: score -= 1
-    
-    tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
-    
-    fund_signal = "عادل / صندوق استثماري"
-    if pe_ratio:
-        if pe_ratio < 15: fund_signal = "رخيص / مغري"
-        elif pe_ratio > 30: fund_signal = "متضخم / غالي"
+    try:
+        secure_session = create_secure_session()
+        stock = yf.Ticker(ticker_input, session=secure_session)
+        df = stock.history(period="6mo")
+        if df.empty:
+            return None
         
-    return {
-        "df": df, "current_price": current_price, "sma_20": sma_20, "sma_50": sma_50,
-        "pe_ratio": pe_ratio, "market_cap": market_cap, "currency": currency,
-        "score": score, "tech_signal": tech_signal, "fund_signal": fund_signal
-    }
+        df['SMA_20'] = df['Close'].rolling(window=20).mean()
+        df['SMA_50'] = df['Close'].rolling(window=50).mean()
+        
+        current_price = df['Close'].iloc[-1]
+        sma_20 = df['SMA_20'].iloc[-1]
+        sma_50 = df['SMA_50'].iloc[-1]
+        
+        info = stock.info
+        pe_ratio = info.get('trailingPE', None)
+        market_cap = info.get('marketCap', 0)
+        currency = info.get('currency', 'USD')
+        
+        news = stock.news
+        pos_words = ['growth', 'profit', 'dividend', 'surge', 'up', 'أرباح', 'نمو', 'صعود']
+        neg_words = ['loss', 'drop', 'decline', 'fall', 'debt', 'خسائر', 'تراجع', 'هبوط']
+        score = 0
+        if news:
+            for item in news[:5]:
+                title_text = item.get('title', '').lower()
+                for pw in pos_words:
+                    if pw in title_text: score += 1
+                for nw in neg_words:
+                    if nw in title_text: score -= 1
+        
+        tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
+        fund_signal = "عادل / صندوق استثماري"
+        if pe_ratio:
+            if pe_ratio < 15: fund_signal = "رخيص / مغري"
+            elif pe_ratio > 30: fund_signal = "متضخم / غالي"
+            
+        return {
+            "df": df, "current_price": current_price, "sma_20": sma_20, "sma_50": sma_50,
+            "pe_ratio": pe_ratio, "market_cap": market_cap, "currency": currency,
+            "score": score, "tech_signal": tech_signal, "fund_signal": fund_signal
+        }
+    except Exception as e:
+        return None
 
-# إعداد حسابات المستخدمين
 if 'credentials' not in st.session_state:
     names = ["Ahmed Ali", "Sarah Mohamed"]
     usernames = ["ahmed123", "sarah_investor"]
@@ -98,7 +95,7 @@ LANG_DICT = {
         "enter_ticker": "أدخل رمز السهم (مثال: AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "ابدأ التحليل الذكي 🚀",
         "loading": "جاري سحب البيانات وتحليل السهم ماليًا وفنيًا...",
-        "error_fetch": "❌ خطأ في الشبكة السحابية: يرجى المحاولة مرة أخرى بعد ثوانٍ. تأكد من إرفاق اللاحقة الجغرافية مثل .L للندن أو .CA لمصر.",
+        "error_fetch": "❌ خطأ في الشبكة أو الرمز: تأكد من كتابة الرمز صحيحاً مع لاحقته الجغرافية مثل .L للندن أو .CA لمصر أو حاول مجدداً بعد ثوانٍ.",
         "basic_info": "📊 بيانات السهم الأساسية",
         "price": "السعر الحالي",
         "market_cap": "القيمة السوقية",
@@ -141,7 +138,7 @@ LANG_DICT = {
         "enter_ticker": "Enter Stock Ticker (e.g., AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "Start Smart Analysis 🚀",
         "loading": "Fetching data, analyzing technicals, fundamentals, and news...",
-        "error_fetch": "❌ Connection Error: Please try again in a few seconds. Ensure you add .L for London or .CA for Egypt.",
+        "error_fetch": "❌ Fetching Error: Please ensure you add .L for London or .CA for Egypt, or try again in a few seconds.",
         "basic_info": "📊 Stock Basic Data",
         "price": "Current Price",
         "market_cap": "Market Cap",
@@ -228,7 +225,7 @@ elif authentication_status:
         ticker_input = st.text_input(ln["enter_ticker"], value="AAPL").strip().upper()
 
         if st.button(ln["btn_analyze"]):
-            with st.spinner(ln["loading"]):
-                res = None
-                try:
-                    res = analyze_stock_data(ticker_input)
+            with St.spinner(ln["loading"]):
+                res = analyze_stock_data(ticker_input)
+                
+                if res is None:
