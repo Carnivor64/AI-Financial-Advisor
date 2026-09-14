@@ -157,7 +157,7 @@ elif authentication_status == None:
         except Exception as e:
             st.error(str(e))
 
-# 3. في حال نجاح تسجيل الدخول - فتح المنصة الكاملة
+# 3. في حال نجاح تسجيل الدخول
 elif authentication_status:
     
     if f'portfolio_{username}' not in st.session_state:
@@ -218,4 +218,5 @@ elif authentication_status:
                         
                         sentiment_res = ln["sent_pos"] if score > 0 else (ln["sent_neg"] if score < 0 else ln["sent_neu"])
 
-                        # المنطقة المعدلة لدعم الصناديق والأسهم معاً مرونة فائقة
+                        tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
+                        
