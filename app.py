@@ -225,7 +225,8 @@ elif authentication_status:
         ticker_input = st.text_input(ln["enter_ticker"], value="AAPL").strip().upper()
 
         if st.button(ln["btn_analyze"]):
-            with St.spinner(ln["loading"]):
+            with st.spinner(ln["loading"]):
                 res = analyze_stock_data(ticker_input)
                 
                 if res is None:
+
