@@ -4,8 +4,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit_authenticator as stauth
 
+# إعدادات الصفحة والواجهة
 st.set_page_config(page_title="AI Financial Advisor", layout="wide")
 
+# 1. إعداد حسابات المستخدمين وإدارة الذاكرة
 if 'credentials' not in st.session_state:
     names = ["Ahmed Ali", "Sarah Mohamed"]
     usernames = ["ahmed123", "sarah_investor"]
@@ -23,6 +25,7 @@ if 'credentials' not in st.session_state:
         }
     st.session_state.credentials = credentials
 
+# 2. إنشاء نموذج المصادقة ونظام تسجيل الدخول
 authenticator = stauth.Authenticate(
     st.session_state.credentials,
     cookie_name="portfolio_ai_cookie",
@@ -30,8 +33,10 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=30
 )
 
+# واجهة اختيار اللغة المبدئية في شاشة الدخول
 selected_lang_name = st.sidebar.selectbox("اختر اللغة / Select Language", ["العربية", "English"])
 
+# قاموس المصطلحات والترجمة الكامل
 LANG_DICT = {
     "العربية": {
         "welcome": "👋 مرحباً بك مجدداً، {name}",
@@ -39,10 +44,10 @@ LANG_DICT = {
         "title": "🎯 مستشارك المالي الذكي & مدير المحفظة الآمن",
         "subtitle": "تحليل الأسهم الفني والأساسي والأخبار + إدارة المحفظة الاستثمارية",
         "select_market": "اختر البورصة المستهدفة",
-        "enter_ticker": "أدخل رمز السهم (مثال: AAPL, COMI.CA, BP.L)",
+        "enter_ticker": "أدخل رمز السهم (مثال: AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "ابدأ التحليل الذكي 🚀",
         "loading": "جاري سحب البيانات وتحليل السهم ماليًا وفنيًا...",
-        "error_fetch": "❌ خطأ: لم نتمكن من جلب بيانات هذا الرمز. تأكد من الصيغة الصحيحة.",
+        "error_fetch": "❌ خطأ: لم نتمكن من جلب بيانات هذا الرمز. تأكد من الصيغة الصحيحة وجودة اللاحقة الجغرافية الجيدة مثل .L أو .CA.",
         "basic_info": "📊 بيانات السهم الأساسية",
         "price": "السعر الحالي",
         "market_cap": "القيمة السوقية",
@@ -83,10 +88,10 @@ LANG_DICT = {
         "title": "🎯 Secure AI Financial Advisor & Portfolio Manager",
         "subtitle": "Technical, Fundamental & Sentiment Stock Analysis + Secured Portfolio Tracking",
         "select_market": "Select Target Market",
-        "enter_ticker": "Enter Stock Ticker (e.g., AAPL, COMI.CA, BP.L)",
+        "enter_ticker": "Enter Stock Ticker (e.g., AAPL, COMI.CA, HIEM.L)",
         "btn_analyze": "Start Smart Analysis 🚀",
         "loading": "Fetching data, analyzing technicals, fundamentals, and news...",
-        "error_fetch": "❌ Error: Could not fetch data for this ticker. Please check the symbol.",
+        "error_fetch": "❌ Error: Could not fetch data for this ticker. Please check the symbol and geographic extension (e.g., .L or .CA).",
         "basic_info": "📊 Stock Basic Data",
         "price": "Current Price",
         "market_cap": "Market Cap",
@@ -127,10 +132,12 @@ ln = LANG_DICT[selected_lang_name]
 if selected_lang_name == "العربية":
     st.markdown('<style>body, div, p, h1, h2, h3 {text-align: right; direction: rtl;}</style>', unsafe_allow_html=True)
 
+# عرض شاشة تسجيل الدخول
 name, authentication_status, username = authenticator.login("main")
 
 if authentication_status == False:
     st.error("❌ اسم المستخدم أو كلمة المرور غير صحيحة / Incorrect Credentials")
+    
     with st.expander(ln["forgot_pass"]):
         try:
             username_of_forgotten_password, email_of_forgotten_password, new_random_password = authenticator.forgot_password()
@@ -141,6 +148,7 @@ if authentication_status == False:
 
 elif authentication_status == None:
     st.warning("🔒 يرجى تسجيل الدخول للوصول إلى مستشارك المالي ومحفظتك الاستثمارية")
+    
     with st.expander(ln["forgot_pass"]):
         try:
             username_of_forgotten_password, email_of_forgotten_password, new_random_password = authenticator.forgot_password()
@@ -149,7 +157,9 @@ elif authentication_status == None:
         except Exception as e:
             st.error(str(e))
 
+# 3. في حال نجاح تسجيل الدخول - فتح المنصة الكاملة
 elif authentication_status:
+    
     if f'portfolio_{username}' not in st.session_state:
         st.session_state[f'portfolio_{username}'] = {}
 
@@ -208,85 +218,4 @@ elif authentication_status:
                         
                         sentiment_res = ln["sent_pos"] if score > 0 else (ln["sent_neg"] if score < 0 else ln["sent_neu"])
 
-                        tech_signal = "صعودي" if current_price > sma_20 > sma_50 else ("هبوطي" if current_price < sma_20 < sma_50 else "عرضي")
-                        fund_signal = "عادل"
-                        if pe_ratio and pe_ratio < 15: fund_signal = "رخيص / مغري"
-                        elif pe_ratio and pe_ratio > 30: fund_signal = "متضخم / غالي"
-                        
-                        if tech_signal == "صعودي" and fund_signal != "متضخم / غالي" and score >= 0:
-                            final_rec = ln["buy"]
-                            reason_res = "اتجاه فني صاعد، تقييم مالي آمن، ومشاعر أخبار إيجابية." if selected_lang_name == "العربية" else "Bullish technicals, safe valuation, and positive sentiment."
-                        elif tech_signal == "هبوطي" or fund_signal == "متضخم / غالي" or score < -1:
-                            final_rec = ln["sell"]
-                            reason_res = "هناك مؤشرات هبوطية قوية، أو تضخم مالي مفرط في السعر." if selected_lang_name == "العربية" else "Bearish indicators or overvalued multiples."
-                        else:
-                            final_rec = ln["hold"]
-                            reason_res = "حركة سعرية عرضية بانتظار محفز جديد للبورصة." if selected_lang_name == "العربية" else "Sideways movement, waiting for new catalysts."
-
-                        st.markdown(f"### {ln['basic_info']}")
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric(ln["price"], f"{current_price:.2f} {currency}")
-                        c2.metric(ln["market_cap"], f"{market_cap:,} {currency}")
-                        c3.metric(ln["pe"], f"{pe_ratio if pe_ratio else 'N/A'}")
-                        
-                        st.markdown(f"### {ln['chart_title']}")
-                        fig = go.Figure()
-                        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price', line=dict(color='#00FFCC', width=2)))
-                        fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], name='SMA 20', line=dict(color='#FF9900', dash='dash')))
-                        fig.update_layout(template="plotly_dark", margin=dict(l=20, r=20, t=20, b=20), height=300)
-                        st.plotly_chart(fig, use_container_width=True)
-
-                        st.markdown(f"### {ln['analysis_res']}")
-                        st.write(f"**{ln['tech_trend']}:** {tech_signal}")
-                        st.write(f"**{ln['fund_val']}:** {fund_signal}")
-                        st.write(f"**{ln['news_sentiment']}:** {sentiment_res}")
-                        
-                        st.success(f"### {ln['final_rec']}")
-                        st.info(f"**{ln['reason']}:** {reason_res}")
-                        
-                        st.markdown("---")
-                        st.markdown(f"#### ➕ {ln['add_to_port']}")
-                        p_price = st.number_input(ln["buy_price"], value=float(current_price))
-                        p_qty = st.number_input(ln["shares_count"], value=10, step=1)
-                        if st.button(ln["btn_save_port"]):
-                            st.session_state[f'portfolio_{username}'][ticker_input] = {
-                                "qty": p_qty,
-                                "cost": p_price,
-                                "currency": currency,
-                                "current_price": current_price
-                            }
-                            st.success("Saved to your secured portfolio!")
-                            st.rerun()
-                            
-                except Exception as e:
-                    st.error(f"{ln['error_fetch']} | Details: {str(e)}")
-
-    with port_col:
-        st.markdown(f"## {ln['portfolio_section']}")
-        st.markdown("---")
-        
-        user_portfolio = st.session_state[f'portfolio_{username}']
-        if not user_portfolio:
-            st.write(ln["port_empty"])
-        else:
-            st.markdown(f"#### {ln['port_status']}")
-            port_data = []
-            for tick, data in user_portfolio.items():
-                current_val = data['qty'] * data['current_price']
-                total_cost = data['qty'] * data['cost']
-                pnl = current_val - total_cost
-                pnl_pct = (pnl / total_cost) * 100
-                
-                port_data.append({
-                    ln["ticker"]: tick,
-                    ln["qty"]: data['qty'],
-                    ln["avg_cost"]: f"{data['cost']:.2f}",
-                    ln["current_val"]: f"{current_val:.2f} {data['currency']}",
-                    ln["pnl"]: f"{pnl:+.2f} ({pnl_pct:+.1f}%)"
-                })
-                
-            port_df = pd.DataFrame(port_data)
-            st.table(port_df)
-
-    st.markdown("---")
-    st.caption(ln["disclaimer"])
+                        # المنطقة المعدلة لدعم الصناديق والأسهم معاً مرونة فائقة
